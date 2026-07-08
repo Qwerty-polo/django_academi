@@ -1,0 +1,26 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+    <div class="presentation container">
+        <img src="https://mukachevo.net/uploads/media/images/image/ed/6b/ed6b617257d943a6b8dc45e104954c82xa8uyvkvhmwfpmv_image.jpg" alt="">
+        <h2>Do you want to learn programing?</h2>
+        <p>Here is where you find good courses</p>
+    </div>
+
+
+    <div class="courses container">
+        {% for el in courses %}
+            <div class="course">
+                {% if el.image %}
+                <img class="course-image" src="{{ el.image.url }}" alt="{{ el.title }}">
+                    {% else %}
+                <img class="course-image" src="/pictures/default.png" alt="">
+                {% endif %}
+
+            <h3>{{ el.title }}</h3>
+
+                <a href="{{ el.get_absolute_url }}">Watch</a>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

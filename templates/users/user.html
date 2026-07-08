@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+    <form method="post" class="form-section container">
+    <h1>    Сторінка авторизації</h1>
+    {% csrf_token %}
+    {{ form }}
+    <button class="btn btn-warning mb-2" type="submit">Log in</button>
+        <p>Forget the password? <a href="{% url 'pass-reset' %}">Click here</a></p>
+
+    </form>
+{% endblock %}
+

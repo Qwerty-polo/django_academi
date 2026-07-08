@@ -1,0 +1,37 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+
+    <div class="courses container">
+
+            <div class="course">
+                {% if object.image %}
+                <img class="course-image" src="{{ object.image.url }}" alt="{{ object.title }}">
+                    {% else %}
+                <img class="course-image" src="/pictures/default.png" alt="">
+                {% endif %}
+
+            <h3>{{ el.title }}</h3>
+                <h3>{{ object.title }}</h3>
+               <p>{{ object.desc }}</p>
+            </div>
+       <div class="aside">
+           <h1>Descriptions of course</h1>
+           <p>{{ object.desc }}</p>
+
+           {% if object.is_free == False and user.is_authenticated == False %}
+               <p>You need to pass <a href="{% url 'reg' %}">registration</a></p>
+           {% else %}
+               {% if object.is_free == True or user.profile.account_type == 'full' %}
+                   <ul>
+                       {% for el in lessons %}
+                           <li><a href="{{ el.get_absolute_url }}">{{ el.title }}</a></li>
+                       {% endfor %}
+                   </ul>
+               {% else %}
+                   <p>You need to buy <a href="{% url 'tarrifs' %}">Full-mode</a></p>
+               {% endif %}
+           {% endif %}
+       </div>
+    </div>
+{% endblock %}

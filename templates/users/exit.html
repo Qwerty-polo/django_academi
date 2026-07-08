@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+    <form class="form-section container">
+        <h1 > Ви успішно вийшли з акаунту</h1>
+{#    <form method="post" action="{% url 'exit' %}">#}
+{#  {% csrf_token %}#}
+{#  <button type="submit">Вийти</button>#}
+{#</form>#}
+    <a href="{% url 'user' %}">Зайти в кабінет знову</a>
+    </form>
+{% endblock %}
+
