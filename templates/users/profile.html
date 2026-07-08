@@ -1,0 +1,41 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+    <form class = 'form-section container'>
+<h1>User profile</h1>
+<div class="d-flex text-body-secondary pt-3">
+    <img aria-label="Placeholder: 64x64" class="bd-placeholder-img flex-shrink-0 me-2 rounded"
+         width="64" height="64" src="{{ user.profile.img.url }}">
+    <p class="pb-3 mb-0 small lh-sm border-bottom">
+        <strong class="d-block text-gray-dark">{{ user.username }}</strong>
+        {% if user.email %}
+            <b>Email: {{ user.email }}</b>
+        {% endif %}
+    </p>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="form-register mt-4">
+    {% csrf_token %}
+
+    {{ updateUserForm.as_p }}
+
+    <hr>
+
+    <p>
+        {{ profileForm.img.label_tag }}
+        {{ profileForm.img }}
+    </p>
+{#    <p>#}
+{#        {{ profileForm.gender.label_tag }}#}
+{#        {{ profileForm.gender }}#}
+{#    </p>#}
+
+{#    <div id="checkbox-override-container">#}
+{#        {{ profileForm.email_consent }}#}
+{#        <label for="{{ profileForm.email_consent.id_for_label }}">Згода на відправлення на пошту</label>#}
+{#    </div>#}
+
+    <button class="btn btn-warning mb-2" type="submit">update</button>
+</form>
+    </form>>
+{% endblock %}

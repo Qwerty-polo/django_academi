@@ -1,0 +1,14 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+    <div class="form-section container">
+        {% if user.is_authenticated == False or user.profile.account_type == 'free' %}
+        <h1>Buy our full course :)</h1>
+        <p>Full mode give you permission to all our courses</p>
+
+        <button>Buy Full mode (10$)</button>
+    {% else %}
+            <p>You have our Full mode :)</p>
+    {% endif %}
+    </div>
+{% endblock %}

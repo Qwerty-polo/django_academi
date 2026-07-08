@@ -1,0 +1,13 @@
+{% extends 'layout.html' %}
+
+{% block main %}
+    <div class="add-course-container">
+
+    <form method="POST" enctype="multipart/form-data" class="form-section container">
+    {% csrf_token %}
+        <h2 class="title-add-course">Add new course</h2>
+    {{ form.as_p }}
+    <button type="submit" class = 'button-add-img'>Add</button>
+    </form>
+    </div>>
+{% endblock %}
