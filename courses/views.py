@@ -1,5 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.template.defaulttags import comment
 from django.urls import reverse_lazy
 from django.views.generic import TemplateView, ListView, DetailView, CreateView
@@ -27,55 +27,61 @@ class CourseDetailPage(DetailView):
 
 
     def get_context_data(self, **kwargs):
-        ctx = super(CourseDetailPage, self).get_context_data(**kwargs)
-        course = Course.objects.filter(slug=self.kwargs['slug']).first()
-        ctx['title'] = course
-        ctx['lessons'] = Lesson.objects.filter(course=course).order_by('number')
-
+        ctx = super().get_context_data(**kwargs)
+        course = get_object_or_404(Course, slug=self.kwargs['slug'])
+        ctx['title'] = course.title
+        ctx['lessons'] = course.lesson_set.all()
         return ctx
 
 class LessonDetailPage(DetailView):
-    model = Course
+    model = Lesson
     template_name = 'courses/lesson-detail.html'
 
+    def get_object(self, queryset=None):
+        # Отримуємо конкретний урок за слагом курсу та слагом уроку
+        return get_object_or_404(
+            Lesson,
+            course__slug=self.kwargs['slug'],
+            slug=self.kwargs['lesson_slug']
+        )
 
     def get_context_data(self, **kwargs):
-        ctx = super(LessonDetailPage, self).get_context_data(**kwargs)
-        course = Course.objects.filter(slug=self.kwargs['slug']).first()
-        lesson = Lesson.objects.filter(slug=self.kwargs['lesson_slug']).first()
+        ctx = super().get_context_data(**kwargs)
+        lesson = self.get_object()
 
-        lesson.video = lesson.video.split('=')[1]
+        # Безпечне витягування ID відео для YouTube
+        video_code = lesson.video
+        if '=' in video_code:
+            video_code = video_code.split('=')[-1]
+        elif '/' in video_code:
+            video_code = video_code.split('/')[-1]
 
-        ctx['title'] = lesson
+        ctx['title'] = lesson.title
         ctx['lesson'] = lesson
-
-        if lesson:
-            ctx['comments']=lesson.comment_set.all().order_by('-id')
-
+        ctx['video_code'] = video_code
+        # Коментарі вже відсортовані за датою завдяки class Meta у Comment
+        ctx['comments'] = lesson.comment_set.all()
         ctx['comment_form'] = CommentForm()
-
         return ctx
 
     def post(self, request, *args, **kwargs):
+        # Якщо користувач не увійшов в акаунт — не дозволяємо коментувати
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        lesson = self.get_object()
         form = CommentForm(request.POST)
-        current_lesson = Lesson.objects.filter(slug=self.kwargs['lesson_slug']).first()
 
-        if form.is_valid() and current_lesson:
+        if form.is_valid():
             comment = form.save(commit=False)
-
             comment.user = request.user
-            comment.lesson = current_lesson
-
+            comment.lesson = lesson
             comment.save()
+            return redirect(lesson.get_absolute_url())
 
-            return redirect(current_lesson.get_absolute_url())
-        else:
-            context = self.get_context_data(**kwargs)
-            context['comment_form'] = form
-            return self.render_to_response(context)
-
-
-
+        context = self.get_context_data(**kwargs)
+        context['comment_form'] = form
+        return self.render_to_response(context)
 
 
 
