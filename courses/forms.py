@@ -32,13 +32,13 @@ class AddCourseForm(forms.ModelForm):
 class CommentForm(forms.ModelForm):
     class Meta:
         model = Comment
-        fields = ['text'] #'user', 'lesson']
+        fields = ['text']
         widgets = {
-            'text': forms.Textarea(attrs={'placeholder': 'Type your comment...'}),
-            'class': 'form-control',
-            'rows': 3,
-            # 'user': forms.HiddenInput(),
-            # 'lesson': forms.HiddenInput(),
+            'text': forms.Textarea(attrs={
+                'placeholder': 'Type your comment...',
+                'class': 'form-control',  # Тепер це всередині attrs!
+                'rows': 3
+            }),
         }
 
 
