@@ -20,6 +20,8 @@ class Profile(models.Model):
     gender = models.CharField('Sex', max_length=10, choices=GENDER_CHOICES, blank=True)
     email_consent = models.BooleanField('Agree to receive emails', default=True)
 
+    is_author = models.BooleanField('Can create courses', default=False)
+
     class Meta:
         verbose_name = 'Профіль'
         verbose_name_plural = 'Профілі'

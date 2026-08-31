@@ -1,21 +1,27 @@
 import os.path
 from pathlib import Path
+import environ  # 1. ДОДАЄМО: імпортуємо бібліотеку
+
+import DjangoStore
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# 2. ДОДАЄМО: ініціалізуємо environ та вказуємо, де лежить файл .env
+env = environ.Env(
+    DEBUG=(bool, False) # Значення за замовчуванням
+)
+environ.Env.read_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'REMOVED_EXPOSED_DJANGO_SECRET'
+SECRET_KEY = env('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -38,6 +44,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'DjangoStore.meddleware.GlobalRateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'DjangoStore.urls'
@@ -124,3 +131,18 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = 'user/'
 LOGIN_REDIRECT_URL = 'home'
+
+
+# Налаштування кешування через Redis
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Вказуємо нашому rate limiter-у використовувати саме цей кеш
+RATELIMIT_USE_CACHE = 'default'
