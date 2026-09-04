@@ -15,3 +15,18 @@ pictures/
 .idea/
 .vscode/
 
+# Логи
+logs/
+*.log
+
+# Celery Beat
+celerybeat-schedule
+celerybeat-schedule.db
+celerybeat-schedule.bak
+celerybeat-schedule.dir
+
+# Coverage
+.coverage
+
+# Celery Beat schedule files
+celerybeat-schedule*

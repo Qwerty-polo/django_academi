@@ -15,6 +15,8 @@ from .forms import AddCourseForm, CommentForm
 from .models import Course, Lesson, Comment
 from django.core.cache import cache
 
+from .tasks import send_new_course_email
+
 def tarrifsPage(request):
     return render(request, 'courses/tarrifs.html', {'title': 'Price is here'})
 
@@ -40,7 +42,6 @@ class CourseDetailPage(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         course = self.object
-        # --- REDIS ЛІЧИЛЬНИК ---
         # 1. Формуємо унікальний ключ для конкретного курсу (наприклад: 'course_views_5')
         redis_key = f'course_views_{course.id}'
 
@@ -112,7 +113,7 @@ class LessonDetailPage(DetailView):
         self.object = self.get_object()
 
         if not request.user.is_authenticated:
-            return redirect('login')
+            return redirect('user')
 
         lesson = self.object
 
@@ -157,5 +158,9 @@ class AddCourseView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     # Цей метод залишаємо, він прив'яже цього адміна як автора курсу
     def form_valid(self, form):
         form.instance.author = self.request.user
+        # Викликаємо фонову задачу! Відправляємо назву курсу.
+        # Метод .delay() миттєво відправляє таску в Redis і код йде далі
+        send_new_course_email.delay(form.instance.title)
+
         return super().form_valid(form)
 

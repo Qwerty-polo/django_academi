@@ -20,7 +20,7 @@ class GlobalRateLimitMiddleware:
         requests_count = cache.get(cache_key, 0)
 
         # 3. Перевіряємо ліміт (ставимо 100 запитів)
-        if requests_count >= 100:
+        if requests_count >= 30:
             return HttpResponseForbidden("Too many requests.")
 
         # 4. Якщо все ок — збільшуємо лічильник на +1.
