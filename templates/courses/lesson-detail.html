@@ -4,97 +4,122 @@
 
     <div class="courses container">
 
-            <div class="course">
-                {% if object.image %}
-                <img class="course-image" src="{{ object.image.url }}" alt="{{ object.title }}">
-                    {% else %}
-                <img class="course-image" src="/pictures/default.png" alt="">
-                {% endif %}
-
-                <h3>{{ object.title }}</h3>
-            </div>
-
-
-         <div class="aside">
-           <h1>Video lesson - {{ lesson.title }}</h1>
-
-
-           {% if object.is_free == True or user.profile.account_type == 'full' %}
-               <p>{{ lesson.desc }}</p>
-
-               <iframe width="560" height="315" src="https://www.youtube.com/embed/zIdv2NDRExI?si={{ lesson.video }}"
-                       title="YouTube video player" frameborder="0"
-                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                       referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-           {% else %}
-               <p>You need to buy <a href="{% url 'tarrifs' %}">full-mode</a></p>
-           {% endif %}
-       </div>
-        <hr>
-
-
-
-
-
-
-
-
-
-{#    comments#}
-
-        <div class="comments-section">
-
-            {% if not comments %}
-                <p><strong>No comments yet. Be the first!</strong></p>
-                {% else %}
-                <p><strong>leave your comments here :)</strong></p>
-
+        <div class="course">
+            {% if lesson.course.image %}
+            <img class="course-image" src="{{ lesson.course.image.url }}" alt="{{ lesson.course.title }}">
+            {% else %}
+            <img class="course-image" src="/pictures/default.png" alt="">
             {% endif %}
 
-            <div class="comment-form">
-
-
-                <form method="post">
-                    {% csrf_token %}
-
-                    <div class="mb-3">
-                        {{ comment_form.text }}
-
-                        {% if comment_form.text.errors %}
-                            <div class="invalid-feedback d-block">
-                                {{ comment_form.text.errors|striptags }}
-                            </div>
-                        {% endif %}
-                    </div>
-
-                    <button type="submit" class="btn btn-primary mb-3" >Send</button>
-                </form>
-            </div>
-
-
-            <div class="comment-list">
-                {% for comment in comments %}
-
-            <div class="card mb-3 bg-warning-subtle border-warning">
-
-                <div class="card-body">
-
-                    <strong>Текст сообщения:</strong>
-
-                    {{ comment.text|linebreaks }}
-
-                    <div class="mt-2">
-                        <strong>Автор:</strong> {{ comment.user.username }}
-                    </div>
-
-                </div>
-            </div>
-
-        {% endfor %}
-            </div>
+            <h3>{{ lesson.course.title }}</h3>
         </div>
-    </div>
 
+
+        <!-- ВІДКРИВАЄМО ASIDE -->
+        <div class="aside">
+            <h1>Video lesson - {{ lesson.title }}</h1>
+
+            {% if has_access %}
+                <p>{{ lesson.desc }}</p>
+
+                <iframe width="560" height="315" src="https://www.youtube.com/embed/{{ video_code }}"
+                        title="YouTube video player" frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+            {% else %}
+                <p>You need to buy <a href="{% url 'tarrifs' %}">full-mode</a></p>
+            {% endif %}
+
+            <hr>
+
+            {# comments #}
+            <div class="comments-section">
+
+                <!-- БЛОК СПОВІЩЕНЬ (ПОМИЛКИ ТА ПОПЕРЕДЖЕННЯ ВІД DJANGO MESSAGES) -->
+                {% if messages %}
+                    <div class="mb-3">
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags|default:'danger' }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if not comments %}
+                    <p><strong>No comments yet. Be the first!</strong></p>
+                {% else %}
+                    <p><strong>leave your comments here :)</strong></p>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                <div class="comment-form">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {{ comment_form.text }}
+
+                            {% if comment_form.text.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ comment_form.text.errors|striptags }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <button type="submit" class="btn btn-primary mb-3">Send</button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-muted"><a href="{% url 'user' %}">Log in</a> to leave a comment.</p>
+                {% endif %}
+
+                <div class="comment-list">
+                    {% for comment in comments %}
+                        <div class="card mb-3 bg-warning-subtle border-warning">
+                            <div class="card-body">
+                                <strong>Comment:</strong>
+                                {{ comment.text|linebreaks }}
+                                <div class="mt-2">
+                                    <strong>Author:</strong> {{ comment.user.username }}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                    {% if comments.has_other_pages %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+
+                            <!-- Кнопка "Попередня" -->
+                            {% if comments.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ comments.previous_page_number }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <!-- Номери сторінок -->
+                            {% for num in comments.paginator.page_range %}
+                                {% if comments.number == num %}
+                                    <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% else %}
+                                    <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+
+                            <!-- Кнопка "Наступна" -->
+                            {% if comments.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ comments.next_page_number }}">Next Page</a>
+                                </li>
+                            {% endif %}
+
+                        </ul>
+                    </nav>
+                {% endif %}
+                </div>
+            </div> 
+
+        </div>
+
+    </div>
 
 {% endblock %}

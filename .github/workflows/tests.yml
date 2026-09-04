@@ -1,0 +1,41 @@
+name: Django CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Prepare .env file
+        run: cp .env.example .env
+
+      - name: Build app
+        run: docker compose build web
+
+      - name: Start Database
+        run: docker compose up -d db redis
+
+      - name: Waiting for db
+        run: sleep 10
+
+      - name: Run tests
+        run: docker compose run --rm web pytest --cov=. --cov-report=term
+
+      - name: Stop containers
+        if: always()
+        run: docker compose down -v
+
+
+

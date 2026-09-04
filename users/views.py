@@ -5,7 +5,10 @@ from .forms import UserRegisterForm, ProfileImageForm, UserUpdateForm
 from django.contrib import messages
 from django.contrib.auth import logout
 
-# Create your views here.
+from django.utils.decorators import method_decorator
+from django_ratelimit.decorators import ratelimit
+
+@ratelimit(key='ip', rate='2/s', method='POST', block=True)
 def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
