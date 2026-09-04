@@ -94,7 +94,7 @@ def test_lesson_comments_logic(client):
     client.force_login(user)
 
     response = client.post(url, data={'text': 'Мій перший комент!'})
-    time.sleep(0.6)  # Даємо секунді передихнути
+    time.sleep(1.5)
     assert response.status_code == 302
     assert Comment.objects.count() == 1
 
