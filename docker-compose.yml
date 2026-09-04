@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: my_project_db
+    environment:
+       - POSTGRES_DB=${POSTGRES_DB}
+       - POSTGRES_USER=${POSTGRES_USER}
+       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  # Redis
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  # (Django)
+  web:
+    build: .
+    # Поки залишаємо runserver для зручності. Коли переконаємось, що все працює — замінимо на gunicorn
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  # Celery Worker (Фонові задачі: відправка email)
+  celery_worker:
+    build: .
+    command: celery -A DjangoStore worker -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+
+  # Celery Beat (Розклад: очищення сесій)
+  celery_beat:
+    build: .
+    command: celery -A DjangoStore beat -l info
+    volumes:
+      - .:/app
+    depends_on:
+      - db
+      - redis
+
+# Зберігаємо дані БД, щоб вони не зникали при перезапуску контейнерів
+volumes:
+  postgres_data:
