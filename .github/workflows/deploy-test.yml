@@ -1,0 +1,17 @@
+name: Deploy to test
+
+on:
+  workflow_dispatch: 
+
+jobs:
+  deploy-to-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Prepare .env file
+        run: cp .env.example .env
+
+      - name: Deploy Project
+        run: docker compose up -d --build

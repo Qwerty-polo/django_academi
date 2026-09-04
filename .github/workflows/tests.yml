@@ -27,6 +27,9 @@ jobs:
       - name: Start Database
         run: docker compose up -d db redis
 
+      - name: Waiting for db
+        run: sleep 10
+
       - name: Run tests
         run: docker compose run --rm web pytest --cov=, --cov-report=term
 
