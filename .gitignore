@@ -30,3 +30,18 @@ celerybeat-schedule.dir
 
 # Celery Beat schedule files
 celerybeat-schedule*
+# Generated test and coverage artifacts
+.pytest_cache/
+.coverage.*
+htmlcov/
+coverage.xml
+junit.xml
+
+# Local configuration and generated artifacts
+.env.*
+!.env.example
+*.sqlite3-*
+*.py[cod]
+staticfiles/
+.ruff_cache/
+.mypy_cache/

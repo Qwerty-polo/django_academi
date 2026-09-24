@@ -1,23 +1,22 @@
 import os.path
 from pathlib import Path
-import environ  # 1. ДОДАЄМО: імпортуємо бібліотеку
-from dotenv import load_dotenv
-import DjangoStore
+import environ
+from django.core.exceptions import ImproperlyConfigured
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# 2. ДОДАЄМО: ініціалізуємо environ та вказуємо, де лежить файл .env
-env = environ.Env(
-    DEBUG=(bool, False) # Значення за замовчуванням
-)
+# Process environment takes precedence over the local .env file.
+env = environ.Env(DEBUG=(bool, False))
 environ.Env.read_env(BASE_DIR / '.env')
 
 SECRET_KEY = env('SECRET_KEY')
+if not SECRET_KEY.strip() or SECRET_KEY == 'replace-with-a-generated-secret-key':
+    raise ImproperlyConfigured('Set SECRET_KEY to a generated value in .env.')
 
 DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '[::1]'] if DEBUG else [])
 
 # Application definition
 
@@ -67,16 +66,25 @@ WSGI_APPLICATION = 'DjangoStore.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
+DB_ENGINE = env('DB_ENGINE', default='sqlite' if DEBUG else 'postgresql')
+if DB_ENGINE == 'sqlite':
+    if not DEBUG:
+        raise ImproperlyConfigured('SQLite fallback is for DEBUG=True local development only.')
+    DATABASES = {'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / env('SQLITE_NAME', default='db.local.sqlite3'),
+    }}
+elif DB_ENGINE == 'postgresql':
+    DATABASES = {'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('POSTGRES_DB', 'postgres'),
-        'USER': os.environ.get('POSTGRES_USER', 'postgres'),
-        'PASSWORD': os.environ.get('POSTGRES_PASSWORD', 'postgres'),
-        'HOST': os.environ.get('DB_HOST', 'db'),  # 'db' - це буде ім'я нашого контейнера
-        'PORT': os.environ.get('DB_PORT', '5432'),
-    }
-}
+        'NAME': env('POSTGRES_DB'),
+        'USER': env('POSTGRES_USER'),
+        'PASSWORD': env('POSTGRES_PASSWORD'),
+        'HOST': env('DB_HOST', default='127.0.0.1'),
+        'PORT': env('DB_PORT', default='5432'),
+    }}
+else:
+    raise ImproperlyConfigured('DB_ENGINE must be sqlite or postgresql.')
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
@@ -118,7 +126,7 @@ STATICFILES_DIRS = [
     os.path.join(BASE_DIR, 'static')
 ]
 
-STATIC_ROOT = os.path.join(BASE_DIR, '/static/')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 MEDIA_URL = '/pictures/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'pictures')
@@ -167,22 +175,39 @@ LOGGING = {
     },
 }
 
-# Налаштування кешування через Redis
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get('REDIS_URL', 'redis://redis:6379/1'),
-    }
-}
+# Local-memory caching is only suitable for a single-process development server.
+# An explicitly configured Redis connection is never silently downgraded.
+REDIS_URL = env('REDIS_URL', default='')
+if REDIS_URL:
+    CACHES = {'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+    }}
+elif DEBUG:
+    CACHES = {'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'django-academy-local',
+    }}
+else:
+    raise ImproperlyConfigured('Set REDIS_URL when DEBUG=False.')
 
 #limiter-у використовує цей кеш
 RATELIMIT_USE_CACHE = 'default'
 
 # --- CELERY НАЛАШТУВАННЯ ---
-CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='')
+CELERY_TASK_ALWAYS_EAGER = env.bool(
+    'CELERY_TASK_ALWAYS_EAGER', default=DEBUG and not CELERY_BROKER_URL
+)
+CELERY_TASK_EAGER_PROPAGATES = True
+if not CELERY_BROKER_URL:
+    if DEBUG and CELERY_TASK_ALWAYS_EAGER:
+        CELERY_BROKER_URL = 'memory://'
+    else:
+        raise ImproperlyConfigured('Set CELERY_BROKER_URL for asynchronous tasks.')
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 
 # --- НАЛАШТУВАННЯ ПОШТИ (Для розробки) ---
 # Листи будуть просто друкуватися в термінал, а не йти в реальний інтернет
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.console.EmailBackend')
