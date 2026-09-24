@@ -26,6 +26,11 @@ class Course(TimeStampedModel):
     def get_absolute_url(self):
         return reverse('course-detail', kwargs={'slug': self.slug})
 
+    def can_access(self, user):
+        return self.is_free or (
+            user.is_authenticated and getattr(getattr(user, 'profile', None), 'is_vip', False)
+        )
+
 
 class Lesson(TimeStampedModel):
     slug = models.SlugField('Slug of lesson')

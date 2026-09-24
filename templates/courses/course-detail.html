@@ -24,7 +24,7 @@
            {% if object.is_free == False and user.is_authenticated == False %}
                <p>You need to pass <a href="{% url 'reg' %}">registration</a></p>
            {% else %}
-               {% if object.is_free == True or user.profile.account_type == 'full' %}
+               {% if has_access %}
                    <ul>
                        {% for el in lessons %}
                            <li><a href="{{ el.get_absolute_url }}">{{ el.title }}</a></li>

@@ -13,7 +13,7 @@
 </head>
 <body>
 <header class="container">
-    <span class = 'logo' href="/  >Learn&Rock</span>
+    <span class="logo">Learn&Rock</span>
     <nav>
         <a href="{% url 'home' %}">Main</a>
         <a href="{% url 'tarrifs' %}">Price</a>
@@ -22,7 +22,10 @@
                 <a href="{% url 'add-course' %}">Add-Course</a>
             {% endif %}
             <a href="{% url 'profile' %}">Profile</a>
-            <a href="{% url 'exit' %}">Exit</a>
+            <form method="post" action="{% url 'exit' %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit">Exit</button>
+            </form>
 
         {% else %}
             <a href={% url 'user' %}>Log in</a>
