@@ -116,7 +116,7 @@ def test_lesson_comments_logic(client):
 # Використовуємо patch, щоб імітувати виклик Celery без реального Redis
 @patch('courses.views.send_new_course_email.delay')
 @pytest.mark.django_db
-def test_add_course_permissions_and_creation(mock_celery_delay, client):
+def test_add_course_permissions_and_creation(mock_celery_delay, client, course_data, django_capture_on_commit_callbacks):
     url = reverse('add-course')
 
     # 1. Звичайний залогінений юзер -> відмова (handle_no_permission)
@@ -137,13 +137,15 @@ def test_add_course_permissions_and_creation(mock_celery_delay, client):
     author.profile.save()
     client.force_login(author)
 
-    form_data = {
-        'slug': 'new-course',
-        'title': 'Курс по Celery',
-        'desc': 'Опис...',
-    }
+    with django_capture_on_commit_callbacks(execute=True):
+        response = client.post(url, data=course_data())
+        mock_celery_delay.assert_not_called()
+    assert response.status_code == 302
+    created = Course.objects.get(slug='created')
+    assert created.author == author and created.title == 'Created'
+    assert created.image.name.startswith('courses_images/')
+    mock_celery_delay.assert_called_once_with(created.title)
 
-    response = client.post(url, data=form_data)
 
 
 
@@ -171,7 +173,14 @@ def test_models_methods():
 @pytest.mark.django_db
 def test_celery_tasks():
     # 1. Тестуємо видалення сесій (перевіряємо, чи повертає правильний текст)
+    from django.contrib.sessions.models import Session
+    from django.utils import timezone
+    from datetime import timedelta
+    Session.objects.create(session_key='expired', session_data='', expire_date=timezone.now()-timedelta(days=1))
+    Session.objects.create(session_key='active', session_data='', expire_date=timezone.now()+timedelta(days=1))
     result_sessions = clear_old_sessions()
+    assert not Session.objects.filter(session_key='expired').exists()
+    assert Session.objects.filter(session_key='active').exists()
     assert result_sessions == "Старі сесії успішно видалено!"
 
     # 2. Тестуємо розсилку листів КОЛИ НЕМАЄ КОРИСТУВАЧІВ з email
@@ -187,6 +196,6 @@ def test_celery_tasks():
 
     # Джанго під час тестів розумний: він не відправляє реальні листи,
     # а складає їх у віртуальну "поштову скриньку" mail.outbox. Перевіримо її!
-    assert len(mail.outbox) == 1
+    assert len(mail.outbox) == 2
     assert mail.outbox[0].subject == '🚀 New course on the platform: Курс по Docker!'
-    assert list(mail.outbox[0].to) == ['user1@test.com', 'user2@test.com']
+    assert {tuple(message.to) for message in mail.outbox} == {('user1@test.com',), ('user2@test.com',)}

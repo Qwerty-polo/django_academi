@@ -80,9 +80,12 @@ def test_custom_logout(client):
     client.force_login(user)
 
     url = reverse('exit')
-    response = client.get(url)
+    response = client.post(url)
     assert response.status_code == 200  # Відмалювалася сторінка exit.html
 
+
+
+    assert "_auth_user_id" not in client.session
 
 
 # 4. ТЕСТУВАННЯ МОДЕЛЕЙ (Сигнали, __str__, is_vip)

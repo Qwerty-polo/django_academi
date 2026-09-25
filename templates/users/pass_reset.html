@@ -1,12 +1,11 @@
 {% extends 'layout.html' %}
-
 {% block main %}
-    <form class = 'form-section container'>
-    <h1>    Відновити пароль</h1>
+<div class="form-section container">
+    <h1>Відновити пароль</h1>
     <form method="post" class="form-register container">
-    {% csrf_token %}
-    {{ form }}
-    <button class="btn btn-warning mb-2" type="submit">Викликати новий пароль</button>
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="btn btn-warning mb-2" type="submit">Викликати новий пароль</button>
     </form>
-    </form>>
+</div>
 {% endblock %}

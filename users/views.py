@@ -1,14 +1,13 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect
-from django.contrib.auth.forms import UserCreationForm
+from django.views.decorators.http import require_POST
 from .forms import UserRegisterForm, ProfileImageForm, UserUpdateForm
 from django.contrib import messages
 from django.contrib.auth import logout
 
-from django.utils.decorators import method_decorator
-from django_ratelimit.decorators import ratelimit
+from DjangoStore.rate_limits import ratelimit
 
-@ratelimit(key='ip', rate='2/s', method='POST', block=True)
+@ratelimit(key='ip', rate='2/s', method='POST')
 def register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
@@ -27,6 +26,7 @@ def register(request):
                       'form': form,
                    })
 
+@require_POST
 def custom_logout(request):
   logout(request)
   # Повідомлення тепер не потрібне, бо вся інформація буде на самій сторінці

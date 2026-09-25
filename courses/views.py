@@ -1,19 +1,22 @@
 from datetime import timedelta
+from urllib.parse import parse_qs, urlsplit
+from django.db import transaction
+from django.contrib.auth.models import User
+from django.core.exceptions import PermissionDenied
 from django.utils import timezone
 
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import TemplateView, ListView, DetailView, CreateView
+from django.views.generic import ListView, DetailView, CreateView
 from django.core.paginator import Paginator
 
 from django.utils.decorators import method_decorator
-from django_ratelimit.decorators import ratelimit
+from DjangoStore.rate_limits import ratelimit, increment_counter, CACHE_ERRORS
 
 from .forms import AddCourseForm, CommentForm
 from .models import Course, Lesson, Comment
-from django.core.cache import cache
 
 from .tasks import send_new_course_email
 
@@ -42,34 +45,23 @@ class CourseDetailPage(DetailView):
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         course = self.object
-        # 1. Формуємо унікальний ключ для конкретного курсу (наприклад: 'course_views_5')
-        redis_key = f'course_views_{course.id}'
-
-        # 2. Дістаємо поточну цифру. Якщо курсу в Redis ще немає, беремо 0
-        views = cache.get(redis_key, 0)
-
-        # 3. Додаємо +1 перегляд
-        views += 1
-
-        # 4. Зберігаємо оновлену цифру назад у пам'ять (timeout=None означає зберігати вічно)
-        cache.set(redis_key, views, timeout=None)
-
-        # 5. Передаємо цифру в шаблон
-        ctx['views_count'] = views
-        # -----------------------
-
+        try:
+            ctx['views_count'] = increment_counter(f'course_views_{course.pk}', timeout=None)
+        except CACHE_ERRORS:
+            ctx['views_count'] = None
+        ctx['has_access'] = course.can_access(self.request.user)
         ctx['title'] = course.title
-        ctx['lessons'] = course.lessons.all()
+        ctx['lessons'] = course.lessons.order_by('number', 'pk') if ctx['has_access'] else course.lessons.none()
         return ctx
 
-@method_decorator(ratelimit(key='ip', rate='2/s', method='POST', block=True), name='dispatch')
+@method_decorator(ratelimit(key='user_or_ip', rate='2/s', method='POST'), name='dispatch')
 class LessonDetailPage(DetailView):
     model = Lesson
     template_name = 'courses/lesson-detail.html'
 
     def get_object(self, queryset=None):
         return get_object_or_404(
-            Lesson,
+            Lesson.objects.select_related('course'),
             course__slug=self.kwargs['slug'],
             slug=self.kwargs['lesson_slug']
         )
@@ -79,23 +71,13 @@ class LessonDetailPage(DetailView):
         lesson = self.object
 
         # 1. YouTube video code
-        video_code = lesson.video
-        if '=' in video_code:
-            video_code = video_code.split('=')[-1]
-        elif '/' in video_code:
-            video_code = video_code.split('/')[-1]
-        ctx['video_code'] = video_code
+        parsed_video = urlsplit(lesson.video)
+        video_code = parse_qs(parsed_video.query).get('v', [None])[0]
+        ctx['video_code'] = video_code or parsed_video.path.rstrip('/').rsplit('/', 1)[-1]
 
-        # 2. Перевірка доступу
-        has_access = False
-        if lesson.course.is_free:
-            has_access = True
-        elif self.request.user.is_authenticated and hasattr(self.request.user, 'profile') and self.request.user.profile.is_vip:
-            has_access = True
+        has_access = lesson.course.can_access(self.request.user)
         ctx['has_access'] = has_access
-
-        # 3. Пагінація коментарів
-        all_comments = lesson.comments.select_related('user').all()
+        all_comments = lesson.comments.select_related('user').order_by('-created_at', '-pk') if has_access else lesson.comments.none()
         paginator = Paginator(all_comments, 3)
         page_number = self.request.GET.get('page')
         page_obj = paginator.get_page(page_number)
@@ -117,23 +99,26 @@ class LessonDetailPage(DetailView):
 
         lesson = self.object
 
-        # --- АНТИСПАМ: перевіряємо останній коментар користувача за останні 60 секунд ---
-        one_minute_ago = timezone.now() - timedelta(seconds=60)
-        recent_comment = Comment.objects.filter(
-            user=request.user,
-            created_at__gte=one_minute_ago
-        ).first()
-
-        if recent_comment:
-            messages.error(request, 'You send too much comments. Wait 1 minute.')
-            return redirect(lesson.get_absolute_url())
+        if not lesson.course.can_access(request.user):
+            raise PermissionDenied('You do not have access to this lesson.')
 
         form = CommentForm(request.POST)
         if form.is_valid():
-            comment = form.save(commit=False)
-            comment.user = request.user
-            comment.lesson = lesson
-            comment.save()
+            with transaction.atomic():
+                # PostgreSQL serializes submissions for this user across lessons.
+                # SQLite development mode has no row-level locks.
+                User.objects.select_for_update().get(pk=request.user.pk)
+                recent_comment = Comment.objects.filter(
+                    user=request.user,
+                    created_at__gte=timezone.now() - timedelta(seconds=60),
+                ).exists()
+                if recent_comment:
+                    messages.error(request, 'You send too much comments. Wait 1 minute.')
+                    return redirect(lesson.get_absolute_url())
+                comment = form.save(commit=False)
+                comment.user = request.user
+                comment.lesson = lesson
+                comment.save()
             return redirect(lesson.get_absolute_url())
 
         context = self.get_context_data(comment_form=form)
@@ -149,7 +134,7 @@ class AddCourseView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     # ДОДАЄМО перевірку доступу
     def test_func(self):
         # Дозволяємо, якщо юзер має галочку is_author АБО якщо це головний адмін (superuser)
-        return self.request.user.profile.is_author or self.request.user.is_superuser
+        return self.request.user.is_superuser or getattr(getattr(self.request.user, 'profile', None), 'is_author', False)
 
     def handle_no_permission(self):
         messages.error(self.request, 'У вас немає прав для створення курсу.')
@@ -158,9 +143,9 @@ class AddCourseView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     # Цей метод залишаємо, він прив'яже цього адміна як автора курсу
     def form_valid(self, form):
         form.instance.author = self.request.user
-        # Викликаємо фонову задачу! Відправляємо назву курсу.
-        # Метод .delay() миттєво відправляє таску в Redis і код йде далі
-        send_new_course_email.delay(form.instance.title)
-
-        return super().form_valid(form)
-
+        with transaction.atomic():
+            response = super().form_valid(form)
+            transaction.on_commit(
+                lambda title=self.object.title: send_new_course_email.delay(title), robust=True
+            )
+        return response

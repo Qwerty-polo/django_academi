@@ -13,8 +13,8 @@ def clear_old_sessions():
 @shared_task
 def send_new_course_email(course_title):
     # 1. Дістаємо email-адреси всіх користувачів
-    users = User.objects.exclude(email='').values_list('email', flat=True)
-    user_emails = list(users)
+    users = User.objects.filter(is_active=True, profile__email_consent=True).exclude(email='').values_list('email', flat=True)
+    user_emails = sorted({email.strip() for email in users if email.strip()})
 
     if not user_emails:
         return "Немає користувачів з email-ами."
@@ -25,12 +25,7 @@ def send_new_course_email(course_title):
     from_email = 'admin@academystore.com'
 
     # 3. Відправляємо (в нашому випадку - виведеться в консоль)
-    send_mail(
-        subject,
-        message,
-        from_email,
-        user_emails,
-        fail_silently=False,
-    )
+    for email in user_emails:
+        send_mail(subject, message, from_email, [email], fail_silently=False)
 
     return f"Send {len(user_emails)} Emails"

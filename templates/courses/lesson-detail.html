@@ -33,6 +33,7 @@
 
             <hr>
 
+            {% if has_access %}
             {# comments #}
             <div class="comments-section">
 
@@ -116,7 +117,8 @@
                     </nav>
                 {% endif %}
                 </div>
-            </div> 
+            </div>
+            {% endif %}
 
         </div>
 
