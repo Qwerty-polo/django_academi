@@ -121,10 +121,3 @@ See [integration testing instructions](docs/integration-testing.md) for the dedi
 - No real payment integration; account access is managed through profile data.
 - Durable notification retries and an outbox are not implemented.
 
-## Author
-
-**Maxym Burlak**
-
-Junior Python Backend Developer
-
-[GitHub](https://github.com/Qwerty-polo) · [LinkedIn](https://www.linkedin.com/in/maxym-burlak-7024773b3/)
