@@ -29,16 +29,6 @@ Django Academy is a server-rendered Django learning platform with a course catal
 
 SQLite and local-memory caching are also supported for local development. Python dependencies are listed in [requirements.txt](requirements.txt).
 
-## Screenshots
-
-Screenshots are planned for the course catalog, course details, lesson comments, and user profile.
-
-<!-- Uncomment each image when its file has been added. -->
-<!-- ![Course catalog](docs/images/course-catalog.png) -->
-<!-- ![Course details](docs/images/course-detail.png) -->
-<!-- ![Lesson and comments](docs/images/lesson-comments.png) -->
-<!-- ![User profile](docs/images/user-profile.png) -->
-
 ## Project Structure
 
 ```text
