@@ -370,7 +370,13 @@ def test_concurrent_comment_cooldown_postgresql(user, lesson):
 
 
 
-def test_eager_notification_runs_after_saved_course(client, user, course_data, django_capture_on_commit_callbacks):
+def test_eager_notification_runs_after_saved_course(
+    client, user, course_data, django_capture_on_commit_callbacks, settings,
+):
+    # This test exercises synchronous delivery after commit, even when Docker
+    # configures asynchronous workers for the application.
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+    settings.CELERY_TASK_EAGER_PROPAGATES = True
     user.profile.is_author = True; user.profile.save()
     client.force_login(user)
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
